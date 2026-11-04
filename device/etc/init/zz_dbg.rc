@@ -1,0 +1,45 @@
+# SATS mirror (RK3399 + Android 13 GSI on Android 10 vendor): diagnostics, VPU access control, touch-to-wake
+on early-init
+    mkdir /metadata/dbg 0777 root system
+    start dbg_log
+
+on property:logd.ready=true
+    start dbg_logcat
+
+# VPU video decode crashes the kernel (VP9) / renders garbage on A13: keep codecs out.
+# Only the camera provider (webcam MJPEG decode) may open the node.
+on boot
+    chmod 0600 /dev/mpp_service
+    chown cameraserver root /dev/mpp_service
+
+on property:sys.boot_completed=1
+    start mirror_setup
+    start tw_daemon
+
+# NOTE: every custom service needs a seclabel; init refuses services without a domain transition even when permissive.
+service dbg_log /system/bin/sh /system/etc/dbg_log.sh
+    user root
+    group root system log shell
+    seclabel u:r:shell:s0
+    oneshot
+    disabled
+
+service dbg_logcat /system/bin/logcat -b all -v threadtime -f /metadata/dbg/logcat.txt -r 1024 -n 3
+    user root
+    group root system log shell
+    seclabel u:r:shell:s0
+    oneshot
+    disabled
+
+service mirror_setup /system/bin/sh /system/etc/mirror_setup.sh
+    user root
+    group root system shell
+    seclabel u:r:shell:s0
+    oneshot
+    disabled
+
+service tw_daemon /system/bin/sh /system/etc/tw_daemon.sh
+    user root
+    group root input shell
+    seclabel u:r:shell:s0
+    disabled

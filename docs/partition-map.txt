@@ -1,0 +1,22 @@
+SATS Mentra Rflex (RK3399, Android 10) - partisjonskart, lest 2026-11-04 med RKDevTool v2.86 (kun lesing)
+Flash: Samsung eMMC, 59000 MB, Total Sector 0x733c000 = 120 832 000 sektorer x 512 B = 61 865 984 000 byte
+Partition table type: GPT (backup-GPT i de siste 33 sektorene)
+
+NO  LBA(hex)    Size(hex)   Name        LBA(dec)     Sektorer(dec)  Stoerrelse
+01  0x00004000  0x00002000  uboot       16384        8192           4 MiB     (IKKE RORE)
+02  0x00006000  0x00002000  trust       24576        8192           4 MiB     (IKKE RORE)
+03  0x00008000  0x00002000  misc        32768        8192           4 MiB     (kandidat: bootloader_message --wipe_data)
+04  0x0000a000  0x00002000  dtb         40960        8192           4 MiB
+05  0x0000c000  0x00002000  dtbo        49152        8192           4 MiB
+06  0x0000e000  0x00000800  vbmeta      57344        2048           1 MiB
+07  0x0000e800  0x00010000  boot        59392        65536          32 MiB    (IKKE RORE)
+08  0x0001e800  0x00002000  security    124928       8192           4 MiB
+09  0x00020800  0x00030000  recovery    133120       196608         96 MiB
+10  0x00050800  0x00038000  backup      329728       229376         112 MiB
+11  0x00088800  0x000c0000  cache       559104       786432         384 MiB
+12  0x00148800  0x00008000  metadata    1345536      32768          16 MiB
+13  0x00150800  0x00000400  frp         1370112      1024           512 KiB
+14  0x00150c00  0x00614000  super       1379328      6373376        3112 MiB  (system/vendor/product - IKKE RORE)
+15  0x00764c00  0x06bd73df  userdata    7752704      113079263      ~53.9 GiB (kandidat: nullstilles)
+
+Kontroll: userdata slutt = 7752704 + 113079263 = 120831967 = 120832000 - 33 (backup-GPT).

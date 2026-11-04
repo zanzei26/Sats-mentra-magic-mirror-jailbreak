@@ -1,0 +1,21 @@
+# Never commit disk images, backups or vendor/Google/Mentra binaries
+*.img
+*.img.gz
+*.gz
+*.zip
+*.apk
+*.bin
+*.raw
+*.db
+*.orig
+eMMC_*
+sats-backup/
+restore-pieces/
+perm-flash/
+gsi/
+__pycache__/
+*.pyc
+.DS_Store
+Thumbs.db
+# keep the own-artwork logo
+!logo/*.bmp
