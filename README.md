@@ -5,7 +5,7 @@ Notes, tools and scripts from taking one retired **SATS Mentra Rflex** training 
 > **This is a write-up of what worked on one unit, not a ready-made flasher.**
 > Partition offsets, hashes and several scripts are specific to that unit. Read your own partition table, take a full eMMC backup first, and verify it. Everything here writes to eMMC; mistakes can leave the device needing maskrom recovery. **Use at your own risk, and only on a device you own.**
 
-The full story (mistakes and corrected assumptions included) is in **[docs/rapport-no.md](docs/rapport-no.md)** (Norwegian; also as a Word file, [docs/SATS-Mentra-Rflex-rapport.docx](docs/SATS-Mentra-Rflex-rapport.docx)). This README is the English summary.
+The full story (mistakes and corrected assumptions included) is in **[docs/report-en.md](docs/report-en.md)** (English) and **[docs/rapport-no.md](docs/rapport-no.md)** (Norwegian; also as a Word file, [docs/SATS-Mentra-Rflex-rapport.docx](docs/SATS-Mentra-Rflex-rapport.docx)). If you only want to get rid of the lock and keep Android 10, read the short **[quick guide](docs/hurtigguide-no.md)** (Norwegian). This README is the summary.
 
 *Not affiliated with, endorsed by, or connected to SATS, Mentra or Rockchip. Names are used only to identify the hardware.*
 
@@ -44,7 +44,7 @@ The full story (mistakes and corrected assumptions included) is in **[docs/rappo
 ## Repository layout
 
 ```
-docs/       Full report (Norwegian, Markdown + Word), partition map, checksums of the artefacts used
+docs/       Full report (English; Norwegian as Markdown + Word), quick guide (lock removal only), partition map, checksums
 tools/      LP metadata parser/builder, resource-image inspector, logo builder, patch helpers
 device/     init rc, helper scripts and local tuning that went into the Android 13 image
 flash/      Scripts used on the device to write/verify extents, metadata, boot-logo and single-block patches
