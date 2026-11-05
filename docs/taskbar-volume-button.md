@@ -35,7 +35,7 @@ Fully hides the system bars by default, which hides the taskbar and the button. 
 - It is **one button opening a panel**, not separate volume up/down keys. Real +/- buttons would need a tiny app (two transparent activities calling `AudioManager.adjustStreamVolume(..., FLAG_SHOW_UI)`); we did not build one because no JDK was installed on the machine used.
 - The hotseat has a limited number of slots (6 here, 4 in use). Check `ls /data/data/com.android.launcher3/databases/` for your grid's database name and adjust `launcher_db_*.sh`.
 - Editing a launcher database is easy to undo (restore the `.before_shortcut` copy), but do it with the launcher stopped.
-- Correction to the main report: disabling `com.android.quicksearchbox` did **not** remove the launcher's search box. After a launcher restart an empty "Søk" placeholder box is still shown at the top of the home screen. (Not solved; the launcher's own feature flag for the on-screen search box would be the thing to try.)
+- Correction to the main report: disabling `com.android.quicksearchbox` did **not** remove the launcher's search box. After a launcher restart an empty "Søk" placeholder box is still shown at the top of the home screen. (Not solved. Tried: `cmd device_config put launcher QSB_ON_FIRST_SCREEN false` plus a launcher restart: **no effect**. On this build (`ro.build.type=user`) Launcher3 treats the flag as a release constant; its debug-flag overrides only work when `Build.TYPE` contains debug or is eng. Remaining options: a resource overlay (needs a signed overlay APK), a patched Launcher3, or another launcher.)
 
 ## Kort på norsk
 
