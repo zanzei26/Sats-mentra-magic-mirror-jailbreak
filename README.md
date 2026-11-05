@@ -5,7 +5,7 @@ Notes, tools and scripts from taking one retired **SATS Mentra Rflex** training 
 > **This is a write-up of what worked on one unit, not a ready-made flasher.**
 > Partition offsets, hashes and several scripts are specific to that unit. Read your own partition table, take a full eMMC backup first, and verify it. Everything here writes to eMMC; mistakes can leave the device needing maskrom recovery. **Use at your own risk, and only on a device you own.**
 
-The full story (mistakes and corrected assumptions included) is in **[docs/report-en.md](docs/report-en.md)** (English) and **[docs/rapport-no.md](docs/rapport-no.md)** (Norwegian; also as a Word file, [docs/SATS-Mentra-Rflex-rapport.docx](docs/SATS-Mentra-Rflex-rapport.docx)). If you only want to get rid of the lock and keep Android 10, read the short **[quick guide](docs/hurtigguide-no.md)** (Norwegian). This README is the summary.
+The full story (mistakes and corrected assumptions included) is in **[docs/report-en.md](docs/report-en.md)** (English) and **[docs/rapport-no.md](docs/rapport-no.md)** (Norwegian; also as a Word file, [docs/SATS-Mentra-Rflex-rapport.docx](docs/SATS-Mentra-Rflex-rapport.docx)). If you only want to get rid of the lock and keep Android 10, read the short **[quick guide](docs/hurtigguide-no.md)** (Norwegian). The missing hardware volume keys are handled in **[docs/taskbar-volume-button.md](docs/taskbar-volume-button.md)**. The Markdown reports are the authoritative versions; the Word file is a snapshot. This README is the summary.
 
 *Not affiliated with, endorsed by, or connected to SATS, Mentra or Rockchip. Names are used only to identify the hardware.*
 
@@ -46,7 +46,7 @@ The full story (mistakes and corrected assumptions included) is in **[docs/repor
 ```
 docs/       Full report (English; Norwegian as Markdown + Word), quick guide (lock removal only), partition map, checksums
 tools/      LP metadata parser/builder, resource-image inspector, logo builder, patch helpers
-device/     init rc, helper scripts and local tuning that went into the Android 13 image
+device/     init rc, helper scripts and local tuning for the Android 13 image; launcher/ = taskbar volume button, fully_show_navbar.sh
 flash/      Scripts used on the device to write/verify extents, metadata, boot-logo and single-block patches
 build/      WSL scripts that rebuilt the GSI system image (ext4 features, SELinux, build.prop)
 logo/       The "Magic Mirror" boot logo (own artwork) and the renderer

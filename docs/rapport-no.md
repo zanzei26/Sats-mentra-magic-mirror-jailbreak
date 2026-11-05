@@ -388,7 +388,7 @@ Verifisert på det permanente systemet (to oppstarter, den siste uten datasletti
 16. `su <uid>` finnes ikke i denne bygget (adb kjører som root direkte) – tilgangstest per bruker må gjøres på andre måter, eller utledes av eier/modus.
 17. PowerShell + `adb shell "..."` med innebygde `$(…)`/anførselstegn feilet igjen (tredje gang): skriv alltid skriptet som `.sh`.
 18. Boot-logoen ble først skrevet oppreist og vistes 90° feil → rotér bitmapet 90° med klokka (se 10.2).
-19. Et søkefelt i launcheren ble forsøkt fjernet med lang-trykk/dra (virket ikke: det er launcherens innebygde søkeboks, ikke en vanlig widget). Løsning: slå av søke-appen `com.android.quicksearchbox` (`pm disable-user --user 0`), da skjuler launcheren feltet. Samtidig kom `input`-trykk i veien for eierens egen bruk av skjermen – ikke styr UI mens noen holder på.
+19. Et søkefelt i launcheren ble forsøkt fjernet med lang-trykk/dra (virket ikke: det er launcherens innebygde søkeboks, ikke en vanlig widget). Forsøkt løsning: slå av søke-appen `com.android.quicksearchbox` (`pm disable-user --user 0`). **Dette fjernet ikke feltet** – etter omstart av launcheren vises en tom «Søk»-boks fortsatt øverst på startskjermen. Uløst (se `docs/taskbar-volume-button.md`). Samtidig kom `input`-trykk i veien for eierens egen bruk av skjermen – ikke styr UI mens noen holder på.
 
 ---
 

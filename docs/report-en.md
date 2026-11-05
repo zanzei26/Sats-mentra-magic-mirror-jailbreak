@@ -388,7 +388,7 @@ Verified on the permanent system (two boots, the last without a data wipe):
 16. `su <uid>` does not exist in this build (adb runs as root directly) — a per-user access test must be done in other ways, or inferred by the owner/mode.
 17. PowerShell + `adb shell "..."` with embedded `$(…)`/quotes failed again (third time): always write the script as a `.sh`.
 18. The boot logo was first written upright and shown 90° wrong → rotate the bitmap 90° clockwise (see 10.2).
-19. A search field in the launcher was attempted removed with long-press/drag (did not work: it is the launcher's built-in search box, not an ordinary widget). Solution: disable the search app `com.android.quicksearchbox` (`pm disable-user --user 0`), then the launcher hides the field. At the same time `input` taps got in the way of the owner's own use of the screen — do not drive the UI while someone is using it.
+19. A search field in the launcher was attempted removed with long-press/drag (did not work: it is the launcher's built-in search box, not an ordinary widget). Attempted solution: disable the search app `com.android.quicksearchbox` (`pm disable-user --user 0`). **This did not remove the box** — after a launcher restart an empty "Søk" placeholder box is still shown at the top of the home screen. Unsolved (see `docs/taskbar-volume-button.md`). At the same time `input` taps got in the way of the owner's own use of the screen — do not drive the UI while someone is using it.
 
 ---
 
