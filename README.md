@@ -2,10 +2,12 @@
 
 Notes, tools and scripts from taking one retired **SATS Mentra Rflex** training mirror (Rockchip RK3399, Android 10, kiosk/device-owner lock) to a **standalone Android 13** (official Google GSI on the stock Android 10 vendor), with a working screen, touch, camera, Wi-Fi and app store.
 
+**The point of it all: to get the mirror up and running properly on Home Assistant** as a wall panel (a dashboard on the mirror, a doorbell notice, voice with Assist through the webcam's microphone, a button that really switches the screen off). The later part of the repository is about that; see **[docs/home-assistant-wall-panel.md](docs/home-assistant-wall-panel.md)**.
+
 > **This is a write-up of what worked on one unit, not a ready-made flasher.**
 > Partition offsets, hashes and several scripts are specific to that unit. Read your own partition table, take a full eMMC backup first, and verify it. Everything here writes to eMMC; mistakes can leave the device needing maskrom recovery. **Use at your own risk, and only on a device you own.**
 
-The full story (mistakes and corrected assumptions included) is in **[docs/report-en.md](docs/report-en.md)** (English) and **[docs/rapport-no.md](docs/rapport-no.md)** (Norwegian; also as a Word file, [docs/SATS-Mentra-Rflex-rapport.docx](docs/SATS-Mentra-Rflex-rapport.docx)). If you only want to get rid of the lock and keep Android 10, read the short **[quick guide](docs/hurtigguide-no.md)** (Norwegian). The missing hardware volume keys are handled in **[docs/taskbar-volume-button.md](docs/taskbar-volume-button.md)**. Running the mirror as a Home Assistant wall panel (camera-app freeze, performance, a doorbell notice that wakes the screen, Cast speakers without Google services) is in **[docs/doorbell-camera-performance.md](docs/doorbell-camera-performance.md)**. The Markdown reports are the authoritative versions; the Word file is a snapshot. This README is the summary.
+The full story (mistakes and corrected assumptions included) is in **[docs/report-en.md](docs/report-en.md)** (English) and **[docs/rapport-no.md](docs/rapport-no.md)** (Norwegian; also as a Word file, [docs/SATS-Mentra-Rflex-rapport.docx](docs/SATS-Mentra-Rflex-rapport.docx)). If you only want to get rid of the lock and keep Android 10, read the short **[quick guide](docs/hurtigguide-no.md)** (Norwegian). The missing hardware volume keys are handled in **[docs/taskbar-volume-button.md](docs/taskbar-volume-button.md)**. Running the mirror as a Home Assistant wall panel is covered in **[docs/home-assistant-wall-panel.md](docs/home-assistant-wall-panel.md)** (overview: adb that survives reboots, the camera and the microphone for Assist, a smooth dashboard, switching the screen off and on from HA) and **[docs/doorbell-camera-performance.md](docs/doorbell-camera-performance.md)** (camera-app freeze, a doorbell notice that wakes the screen, the microphone fix, Cast speakers without Google services). The Markdown reports are the authoritative versions; the Word file is a snapshot. This README is the summary.
 
 *Not affiliated with, endorsed by, or connected to SATS, Mentra or Rockchip. Names are used only to identify the hardware.*
 
@@ -19,7 +21,12 @@ The full story (mistakes and corrected assumptions included) is in **[docs/repor
 | Newer Android running standalone | Android 13 (`TQ3A.230805.001.A3` GSI) permanently installed in `super`, boots in ~66 s, no DSU |
 | App store | Aurora Store (anonymous login) |
 | Mirror behaviour (screen off, tap to use) | 60 s screen timeout + a small touch-to-wake service |
-| Camera | Works (USB webcam via the external camera HAL) |
+| Camera | Works (USB webcam via the external camera HAL; the camera app no longer freezes after fixing the still size) |
+| Microphone / Assist | Works: the webcam microphone recorded silence until the USB audio policy got an explicit 16-bit 48 kHz profile (bind-mounted at boot). Some Assist problems remain (intermittent audio loss, no custom wake word) |
+| Home Assistant dashboard | Kiosk dashboard in Fully; screensaver, drawing page and 3D house were made much lighter; clock freeze fixed (HA dashboard modules in `device/ha/`) |
+| Doorbell | The ring wakes the screen and shows a notice (a picture is not possible from a WebRTC-only doorbell) |
+| Screen off from HA | The "switch mirror off" button switches the display off within a second (HA sends the Android sleep key over adb) |
+| adb over Wi-Fi | Port 5555, set as a persistent property and re-asserted at every boot |
 | Hardware video decode | Intentionally disabled for media codecs (see below) |
 | Google Play services / YouTube app | Not available on a plain AOSP GSI (so no Cast discovery in Spotify/Google Home; speakers are controlled from Home Assistant instead) |
 | Boot logo | Replaced (own "Magic Mirror" bitmap) |
@@ -34,10 +41,14 @@ The full story (mistakes and corrected assumptions included) is in **[docs/repor
 6. **Touch-to-wake** is not provided by Android 13 here; a ~10-line service reading raw evdev and sending `KEYCODE_WAKEUP` fixes it. Check for "not `Awake`", not just `Asleep` (there is a 2 s `Dozing` state).
 7. **Boot logo** lives in a Rockchip resource image (`RSCE`) inside the `boot` partition (not in `dtb`). Replace the bitmap contents with a same-size 8-bit BMP (no repacking, no offset changes). On this portrait panel the bitmap had to be **pre-rotated 90° clockwise**.
 8. **Patch a single 4 KiB block of an installed read-only system file** (same length, inode untouched) via `debugfs bmap` + `dd` with before/after hashes. Handy for small init/script changes without re-flashing the system.
+9. **A USB webcam microphone that "records" silence**: the vendor's dynamic USB audio policy makes Android request 24-bit *mono*, a format the camera does not offer, so every open fails and apps get zeros. An explicit 16-bit 48 kHz profile in a copy of `usb_audio_policy_configuration.xml`, bind-mounted over the vendor file, fixes it without touching `/vendor`. Do not restart `audioserver` while something records, and do not force-stop the Companion app (it is the system assistant).
+10. **The GPU was not the reason for the choppy dashboard.** The Mali is used and needs 5-12 ms per frame; the cost was thousands of canvas draw calls, O(n) redraws and JavaScript on one little core. Patching the three offending dashboard cards (monkey-patched methods in HA dashboard modules) beat any system tuning. A newer browser (Chrome Beta 158 instead of the WebView 109) was *slower* for the 3D view.
+11. **Screen off from Home Assistant**: Fully's JavaScript `turnScreenOff` needs Fully PLUS. Android's shortest screen timeout is 10 s and counts from the last touch; the reliable way is HA's Android Debug Bridge integration sending `input keyevent 223` (sleep) and `224` (wake).
 
 ## Security notes (read these)
 
-- `ro.adb.secure=0` + root adb = **unauthenticated root over adb**. Turn wireless debugging off on networks you do not control.
+- `ro.adb.secure=0` + root adb = **unauthenticated root over adb**. Turn wireless debugging off on networks you do not control. In the Home Assistant setup the adb port is kept open at every boot and Home Assistant itself holds a connection to it (screen on/off), so anyone who reaches that port or Home Assistant has root on the mirror.
+- The Companion app is the system assistant and has the microphone permission; its local database holds Home Assistant tokens (never commit or share it).
 - SELinux types are all permissive; the bootloader is unlocked and verified boot is off.
 - There are no OTA updates. Updating means a new GSI and a new write.
 
@@ -45,8 +56,8 @@ The full story (mistakes and corrected assumptions included) is in **[docs/repor
 
 ```
 docs/       Full report (English; Norwegian as Markdown + Word), quick guide (lock removal only), partition map, checksums
-tools/      LP metadata parser/builder, resource-image inspector, logo builder, patch helpers, Companion-app local-push helper
-device/     init rc, helper scripts and local tuning for the Android 13 image; launcher/ = taskbar volume button, fully_show_navbar.sh; ha/ = Home Assistant dashboard module (doorbell notice); dexopt_speed.sh = AOT-compile the touch-path apps
+tools/      LP metadata parser/builder, resource-image inspector, logo builder, patch helpers, Companion-app local-push helper, USB audio policy generator
+device/     init rc, helper scripts and local tuning for the Android 13 image; data-local/ = boot hooks (microphone policy, persistent adb, assistant setting) and the USB audio policy file; launcher/ = taskbar volume button, fully_show_navbar.sh; ha/ = Home Assistant dashboard modules (doorbell notice, lighter screensaver / drawing page, clock and screen-off fix) and the screen on/off scripts; dexopt_speed.sh = AOT-compile the touch-path apps
 flash/      Scripts used on the device to write/verify extents, metadata, boot-logo and single-block patches
 build/      WSL scripts that rebuilt the GSI system image (ext4 features, SELinux, build.prop)
 logo/       The "Magic Mirror" boot logo (own artwork) and the renderer

@@ -1,0 +1,57 @@
+# Home Assistant scripts that switch the mirror's screen off and on (see docs/home-assistant-wall-panel.md, section 4).
+# Replace the two entity names with your own:
+#   media_player.mirror_adb          the Android Debug Bridge (androidtv) integration entity for the mirror (host = mirror, port 5555;
+#                                    screenshot interval 0, app list off)
+#   notify.mobile_app_mirror         the Companion app's notify action (Settings > Companion app > device name)
+# The dashboard card (device/ha/speil-kort-fiks.js) calls script.speil_skjerm_av, script.speil_skjerm_avbryt.
+
+speil_skjerm_av:
+  alias: "Mirror: screen off"
+  mode: restart          # a new call restarts the countdown of the fallback path
+  sequence:
+    - choose:
+        - conditions:
+            - condition: template
+              value_template: "{{ states('media_player.mirror_adb') not in ['unavailable', 'unknown'] }}"
+          sequence:
+            # KEYCODE_SLEEP: the display is off within a second
+            - action: androidtv.adb_command
+              target: { entity_id: media_player.mirror_adb }
+              data: { command: "input keyevent 223" }
+      default:
+        # Fallback: the Companion app sets the system screen timeout (needs: appops set io.homeassistant.companion.android
+        # WRITE_SETTINGS allow). Android turns the screen off 10 s after the last touch; the timeout goes back after 30 s.
+        - action: notify.mobile_app_mirror
+          continue_on_error: true
+          data: { message: command_screen_off_timeout, data: { command: 10000 } }
+        - delay: { seconds: 30 }
+        - action: notify.mobile_app_mirror
+          continue_on_error: true
+          data: { message: command_screen_off_timeout, data: { command: 300000 } }
+
+speil_skjerm_pa:
+  alias: "Mirror: screen on"
+  mode: single
+  sequence:
+    - choose:
+        - conditions:
+            - condition: template
+              value_template: "{{ states('media_player.mirror_adb') not in ['unavailable', 'unknown'] }}"
+          sequence:
+            # KEYCODE_WAKEUP
+            - action: androidtv.adb_command
+              target: { entity_id: media_player.mirror_adb }
+              data: { command: "input keyevent 224" }
+      default:
+        - action: notify.mobile_app_mirror
+          continue_on_error: true
+          data: { message: command_screen_on }
+    - action: script.speil_skjerm_avbryt
+
+speil_skjerm_avbryt:
+  alias: "Mirror: restore the screen timeout"
+  mode: single
+  sequence:
+    - action: notify.mobile_app_mirror
+      continue_on_error: true
+      data: { message: command_screen_off_timeout, data: { command: 300000 } }
