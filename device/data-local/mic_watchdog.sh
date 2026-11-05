@@ -13,7 +13,10 @@ VIS=io.homeassistant.companion.android/.assist.service.AssistVoiceInteractionSer
 USBDEV=/sys/bus/usb/devices/5-1.2
 LOG=/data/local/mic_watchdog.log
 PIDF=/data/local/tmp/mic_watchdog.pid
-if [ -f $PIDF ] && kill -0 "$(cat $PIDF)" 2>/dev/null; then exit 0; fi
+# one instance only. The pid file survives a reboot, and its pid may now belong to some other process (or to this one),
+# so the old pid only counts if it is not our own pid and its command line is this script.
+oldpid=$(cat $PIDF 2>/dev/null)
+if [ -n "$oldpid" ] && [ "$oldpid" != "$$" ] && grep -q mic_watchdog /proc/$oldpid/cmdline 2>/dev/null; then exit 0; fi
 echo $$ > $PIDF
 log() {
   echo "$(date '+%m-%d %H:%M:%S') $*" >> $LOG

@@ -57,7 +57,7 @@ The full story (mistakes and corrected assumptions included) is in **[docs/repor
 ```
 docs/       Full report (English; Norwegian as Markdown + Word), quick guide (lock removal only), partition map, checksums
 tools/      LP metadata parser/builder, resource-image inspector, logo builder, patch helpers, Companion-app local-push helper, USB audio policy generator
-device/     init rc, helper scripts and local tuning for the Android 13 image; data-local/ = boot hooks (microphone policy, persistent adb, assistant setting) and the USB audio policy file; launcher/ = taskbar volume button, fully_show_navbar.sh; ha/ = Home Assistant dashboard modules (doorbell notice, lighter screensaver / drawing page, clock and screen-off fix) and the screen on/off scripts; dexopt_speed.sh = AOT-compile the touch-path apps
+device/     init rc, helper scripts and local tuning for the Android 13 image; data-local/ = boot hooks (microphone policy, persistent adb, assistant setting, microphone watchdog) and the USB audio policy file; launcher/ = taskbar volume button, fully_show_navbar.sh; ha/ = Home Assistant dashboard modules (doorbell notice, lighter screensaver / drawing page, clock and screen-off fix) and the screen on/off scripts; dexopt_speed.sh = AOT-compile the touch-path apps
 flash/      Scripts used on the device to write/verify extents, metadata, boot-logo and single-block patches
 build/      WSL scripts that rebuilt the GSI system image (ext4 features, SELinux, build.prop)
 logo/       The "Magic Mirror" boot logo (own artwork) and the renderer

@@ -41,3 +41,15 @@ fi
     fi
   fi
 ) > /dev/null 2>&1 &
+
+# Self-healing for the Companion app's wake-word recorder on the USB camera microphone (see docs/home-assistant-wall-panel.md,
+# section 2). Starts one watchdog per boot, 90 s after boot has completed (the assistant setting above is restored 45 s after
+# boot, so the two do not step on each other). The script exits at once if an instance is already running.
+if [ -f /data/local/mic_watchdog.sh ]; then
+  (
+    n=0
+    while [ "$(getprop sys.boot_completed)" != "1" ] && [ $n -lt 120 ]; do sleep 2; n=$((n+1)); done
+    sleep 90
+    setsid sh /data/local/mic_watchdog.sh > /dev/null 2>&1
+  ) > /dev/null 2>&1 &
+fi
