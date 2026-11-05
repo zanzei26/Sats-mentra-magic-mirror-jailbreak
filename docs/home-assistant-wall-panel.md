@@ -12,7 +12,7 @@ Setup on the mirror: Android 13 GSI on the Android 10 vendor, **Fully Kiosk Brow
 | Camera picture green | MJPEG decode uses the same VPU node as video decode, which is blocked | `cameraserver` owns `/dev/mpp_service` | main report |
 | Assist hears silence | Dynamic USB audio policy makes Android ask the webcam for 24-bit **mono**, which it does not have | Explicit 16-bit 48 kHz profile, bind-mounted over the vendor file | section 2 below |
 | Companion is no longer the assistant | `am force-stop` of the Companion clears the assistant settings | Never force-stop it; the boot script restores the setting if empty | section 2 |
-| Dashboard choppy | Screensaver canvas, drawing page and 3D house are CPU/JavaScript bound, not GPU bound | Three HA dashboard modules and a card setting | section 3 |
+| Dashboard choppy | Screensaver canvas, drawing page and 3D house are CPU/JavaScript bound, not GPU bound | Four HA dashboard modules (the 3D one keeps every 3D feature switched on) | section 3 |
 | Clock/calendar/weather freeze after changing view | Timers stopped on disconnect, not restarted | Patch in the same module as the screen-off fix | section 3 |
 | "Switch mirror off" only paints the page black | Fully's JavaScript interface needs Fully PLUS | HA sends the Android sleep key over adb | section 4 |
 | Wi-Fi adb disappears at reboot | It was only a runtime setting | `persist.adb.tcp.port`, re-asserted at every boot | section 1 |
@@ -61,15 +61,16 @@ Assist problems that remain or were only worked around:
 
 **The GPU is not the limit.** Mali-T860 r18p0 is used (GL-accelerated WebView, hardware composition); GPU time per frame was 5-12 ms. The jank was JavaScript/draw-call work on the browser main thread and CPU load (all interrupts land on cpu0, a Cortex-A53 at 1.4 GHz). There is no browser or WebView flag that makes it faster.
 
-How to measure without guessing: `dumpsys gfxinfo <pkg>` for frame stats, and `dumpsys SurfaceFlinger --latency <layer>` for per-frame present times (Fully's layer is `de.ozerov.fully/de.ozerov.fully.FullyActivity#N`, Chrome's content layer `com.chrome.beta/ChromeChildSurface#N`; the number changes after the screen wakes). Count only frames after the test start. Script the touches (`input swipe`) only when nobody is using the mirror.
+How to measure without guessing (scripts in `tools/webview-profile/`): `dumpsys gfxinfo <pkg>` for frame stats, and `dumpsys SurfaceFlinger --latency <layer>` for per-frame present times (Fully's layer is `de.ozerov.fully/de.ozerov.fully.FullyActivity#N`, Chrome's content layer `com.chrome.beta/ChromeChildSurface#N`; the number changes after the screen wakes). Count only frames after the test start. Script the touches (`input swipe`) only when nobody is using the mirror.
 
 ### Fixes (HA dashboard modules in `device/ha/`)
 
-All three are inline dashboard resources (type `module`), apply only on an Android user agent and the mirror's dashboard path, fall back to the original code on error, and are removed by deleting the resource and reloading Fully. Custom elements read `connectedCallback` and the other lifecycle callbacks once, at `customElements.define()`; patching them on the prototype afterwards does nothing. Plain methods and accessors (`hass`, `_start`, `_bygg`, `_tegneoppsett`, `_tikk`) are looked up at call time and can be patched.
+All four are inline dashboard resources (type `module`), apply only on an Android user agent and the mirror's dashboard path, fall back to the original code on error, and are removed by deleting the resource and reloading Fully. Custom elements read `connectedCallback` and the other lifecycle callbacks once, at `customElements.define()`; patching them on the prototype afterwards does nothing. Plain methods and accessors (`hass`, `_start`, `_bygg`, `_tegneoppsett`, `_tikk`) are looked up at call time and can be patched.
 
 - `speil-orb-lett.js`: the screensaver is a full-screen canvas "neural orb" with about 225 `stroke()` calls, 150 arcs and up to 90 `shadowBlur` dots per frame at 30 fps. The module draws the same picture with about 20 draw calls (strokes batched by strength, a pre-rendered glow sprite instead of `shadowBlur`, canvas at 0.75x). Idle, 20 s: p50 frame time 30 -> 22 ms, p99 77-85 -> 34 ms, SoC load 49-65 % -> 38.5 %. A 30 fps cap with a threshold of 33 ms rejected vsync pairs 32.9 ms apart, which gave a 50 ms frame every fifth frame; the threshold is now 29 (frames over 34 ms: 18.2 % -> 13.4 %).
 - `speil-barn-lett.js`: the kids' drawing page redrew **all** strokes on every `pointermove` (1,844,160 `stroke()` calls for 1,920 moves; 1,920 after the fix), on top of an animated 400 % gradient and `backdrop-filter: blur` on every panel. The module draws only the new segment (a capture-phase listener stops the original handler), uses a static pastel background and no blur. Stored points are identical; 0.04 % of the pixels differ (stroke start dots). Test with 40 automatic strokes: 0.62 % janky frames, p99 48 ms. The page's 12 floating emojis and the pulsing star kept the compositor at 60 fps on an otherwise still page (SoC 29.6 % busy at rest), so they are now paused after 20 s without touch and start again on the next touch (at rest: 0 frames presented, 12.9 % busy; one stroke brings the animations back). The family card's drawing is left alone: it redraws all strokes on every move too, but with one path per stroke on a small canvas, which is cheap next to the per-segment redraw on the full-screen kids' page.
 - `speil-kort-fiks.js`: (1) the main card's clock, calendar and weather froze after Speil -> another view -> Speil (the disconnect callback clears the intervals but not their ids; the connect callback only restarts the clock when the id is empty). The `hass` setter, which HA calls several times per second, now restarts the three timers when the clock has not ticked for 3 s. (2) "Switch mirror off", see section 4.
+- `speil-3d-lett.js`: lets the 3D house card keep **all** its features switched on (see the next subsection). (1) `forceSinglePass` on `Material.prototype`, so Three.js stops drawing every transparent, double-sided material twice per frame. (2) While the screen is touched (and 0.6 s after) the newest `hass` for the 3D card is held back and delivered afterwards (at most 3 s), because every Home Assistant state change otherwise runs the card's whole update in the middle of an orbit.
 
 ### The 3D house card (NeonPlan 3D)
 
@@ -81,9 +82,26 @@ The 3D view is bound by the JavaScript main thread (one Cortex-A72 at about 100 
 | + `flows, holograms, pets, ghost, walk: false` | 779 | 58 % | - | 10 % |
 | + `plain: true`, `roof: false` | 860 | 51 % | - | - |
 | + `room_names: false`, `markers: none` | 962 | 37.5 % | 36 ms | - |
-| **chosen:** the `false` options above + `plain: true`, `roof: false`, `room_names: false`, `markers: room` | 934 | 41.5 % | 34 ms | - |
+| *earlier choice, replaced by the module below:* the `false` options above + `plain: true`, `roof: false`, `room_names: false`, `markers: room` | 934 | 41.5 % | 34 ms | - |
 
 The card's own overlay (`stats: true`, do not leave it on) said 13 fps at the automatic full level (slowest frame 200 ms, 91 draw calls, 64,238 triangles) and 15 fps with the options above (slowest 100 ms, 49 draw calls, 38,900 triangles). I reported this upstream: bug issue [Mastershort/neonplan3d#952](https://github.com/Mastershort/neonplan3d/issues/952) and Ideas discussion [#953](https://github.com/Mastershort/neonplan3d/discussions/953) (the draft is in [neonplan3d-performance-report-draft.md](neonplan3d-performance-report-draft.md)). Not answered when this was written.
+
+**All features back on (2026-11-05, `speil-3d-lett.js`).** The owner wanted the whole house again (`plain` is "floor plan only, no furniture", plus roof, room names, markers `important`, flows, holograms, pets, ghost, walk) without choppier orbiting. The card is now `type: custom:neonplan3d-card` with only `quality: low` and the usual layout options. What the profile showed (CPU profile and timeline trace over Chrome's DevTools protocol; Fully's `webviewDebugging` preference was switched on for the session and off again; the helper scripts are in `tools/webview-profile/`):
+
+- **Three.js draws every transparent, double-sided material twice per frame** (back faces, then front faces) and sets `material.needsUpdate = true` both times. With everything on that was 20-33 materials, about 22,000 `needsUpdate` in 36 s, and every one made Three recompute the shader parameters and the program key (`getParameters`, `getProgramCacheKey`, `getProgram`: about 10 % of the main thread). `forceSinglePass = true` removes it. Screen captures of the house view and the floor view with and without it were visually identical.
+- **Every Home Assistant state change** (about 6 per second here: power meters, the router's CPU and memory sensors) arrives as one websocket task of 10-30 ms in which the card also runs its update (`syncDevices` and more). Holding back the card's `hass` while touching shortens the tail a little (p99 of the animation-frame callback 35.6 -> 23.7 ms, one trace each). An experiment that also queued Home Assistant's own websocket messages while touching and replayed them afterwards gave no measurable gain and was not kept.
+- Per frame the scene is already merged into about 58 draw calls (3 floors times about 10 meshes, 99 meshes and 57k triangles in all). A micro-benchmark that hid parts of the scene put all floor groups at 6-7 ms of the 9-10 ms of `render()`, roughly 0.1-0.15 ms per draw call, and no single feature dominates (glow, light spill and lamps about 1 ms together, walls about 1 ms, frames, glass and blinds about 0.3 ms). So hiding one feature while orbiting would not buy much.
+- What is left is outside the card's render: a style recalculation of about 3 ms per frame for the three floor labels (0.6 ms each), Home Assistant's own message handling, and a 435 KB `config/entity_registry/list_for_display` answer about every 40 s that blocks the main thread for about 127 ms.
+
+Orbit test (about 21 s of drags, SurfaceFlinger present intervals of Fully's layer, same day):
+
+| Card | Frames | Intervals over 34 ms | Over 50 ms | Idle CPU |
+|---|---|---|---|---|
+| Earlier reduced options (`plain`, no roof, no room names, extras off) | 830-844 | 10-14 % | 4.5 % | 10 % |
+| Everything on, without the module | 695-698 | 23 % | 7-9 % | 16-21 % |
+| Everything on, with the module (6 runs) | 774-793 (one run 656) | 15-17 % | 4.6-6.4 % | 15 % |
+
+So the full house now orbits almost like the reduced one did (6-8 % fewer frames, a few points more intervals over 34 ms); the animated extras keep the idle load at about 15 % instead of 10 %, which is what they cost. The test drives the screen with `input swipe`, so absolute numbers carry the injection's own rhythm; compare runs only with each other.
 
 ### Things that did not help
 
@@ -112,6 +130,6 @@ Tested on the mirror: button -> display off within 1 s; wake script -> the dashb
 
 - The Assist watchdog's boot start has not been confirmed by a reboot yet (section 2), and a custom wake word is not made.
 - Intermittent audio loss in the Companion's recording path (section 2); the watchdog now logs the overflow times.
-- Which 3D-house features to bring back (section 3). The measurements say what they cost: `plain` + `roof` about 9 points of janky frames while orbiting, `room_names` + `markers` about 13, `markers: room` instead of `none` about 4; the animated extras (`flows`, `holograms`, `pets`, `ghost`, `walk`) barely change the orbit but double the idle CPU (10 % -> 20 %).
-- The unproven ideas for the 3D house: pin the render threads to the big cores (`schedtune`, `taskset`), move interrupts off cpu0.
+- The 3D house now has every feature on (section 3). What is left over: it orbits a little worse than the reduced setup did (6-8 % fewer frames), and the animated extras keep the idle load at about 15 %. Further ideas, none tried: a CSS `contain`/`will-change` tweak for the floor labels (style recalculation about 3 ms per frame), fewer Home Assistant state events (the router CPU/memory sensors and the power meters update every 1-3 s; every event costs a 10-30 ms main-thread task on every dashboard), pinning the render threads to the big cores (`schedtune`, `taskset`), moving interrupts off cpu0.
+- The module patches a third-party bundle at run time (a `Material.prototype` accessor and the card's `hass` setter). A NeonPlan update that renames either simply makes the patch do nothing; the effect is easy to re-check with the tools in `tools/webview-profile/`.
 - The upstream NeonPlan reports are open.

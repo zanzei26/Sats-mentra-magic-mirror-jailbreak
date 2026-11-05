@@ -23,7 +23,7 @@ The full story (mistakes and corrected assumptions included) is in **[docs/repor
 | Mirror behaviour (screen off, tap to use) | 60 s screen timeout + a small touch-to-wake service |
 | Camera | Works (USB webcam via the external camera HAL; the camera app no longer freezes after fixing the still size) |
 | Microphone / Assist | Works: the webcam microphone recorded silence until the USB audio policy got an explicit 16-bit 48 kHz profile (bind-mounted at boot). Some Assist problems remain (intermittent audio loss, no custom wake word) |
-| Home Assistant dashboard | Kiosk dashboard in Fully; screensaver, drawing page and 3D house were made much lighter; clock freeze fixed (HA dashboard modules in `device/ha/`) |
+| Home Assistant dashboard | Kiosk dashboard in Fully; screensaver and drawing page were made much lighter, the 3D house runs with every feature on, clock freeze fixed (HA dashboard modules in `device/ha/`) |
 | Doorbell | The ring wakes the screen and shows a notice (a picture is not possible from a WebRTC-only doorbell) |
 | Screen off from HA | The "switch mirror off" button switches the display off within a second (HA sends the Android sleep key over adb) |
 | adb over Wi-Fi | Port 5555, set as a persistent property and re-asserted at every boot (confirmed with a reboot) |
@@ -42,7 +42,7 @@ The full story (mistakes and corrected assumptions included) is in **[docs/repor
 7. **Boot logo** lives in a Rockchip resource image (`RSCE`) inside the `boot` partition (not in `dtb`). Replace the bitmap contents with a same-size 8-bit BMP (no repacking, no offset changes). On this portrait panel the bitmap had to be **pre-rotated 90° clockwise**.
 8. **Patch a single 4 KiB block of an installed read-only system file** (same length, inode untouched) via `debugfs bmap` + `dd` with before/after hashes. Handy for small init/script changes without re-flashing the system.
 9. **A USB webcam microphone that "records" silence**: the vendor's dynamic USB audio policy makes Android request 24-bit *mono*, a format the camera does not offer, so every open fails and apps get zeros. An explicit 16-bit 48 kHz profile in a copy of `usb_audio_policy_configuration.xml`, bind-mounted over the vendor file, fixes it without touching `/vendor`. Do not restart `audioserver` while something records, and do not force-stop the Companion app (it is the system assistant).
-10. **The GPU was not the reason for the choppy dashboard.** The Mali is used and needs 5-12 ms per frame; the cost was thousands of canvas draw calls, O(n) redraws and JavaScript on one little core. Patching the three offending dashboard cards (monkey-patched methods in HA dashboard modules) beat any system tuning. A newer browser (Chrome Beta 158 instead of the WebView 109) was *slower* for the 3D view.
+10. **The GPU was not the reason for the choppy dashboard.** The Mali is used and needs 5-12 ms per frame; the cost was thousands of canvas draw calls, O(n) redraws and JavaScript on one little core. Patching the offending dashboard cards (monkey-patched methods in HA dashboard modules) beat any system tuning. A CPU profile and timeline trace of the page in Fully's WebView, taken over the DevTools protocol, found the 3D card's real cost: Three.js draws every transparent double-sided material twice per frame and recompiles its shader program keys each time; one prototype accessor removes that. A newer browser (Chrome Beta 158 instead of the WebView 109) was *slower* for the 3D view.
 11. **Screen off from Home Assistant**: Fully's JavaScript `turnScreenOff` needs Fully PLUS. Android's shortest screen timeout is 10 s and counts from the last touch; the reliable way is HA's Android Debug Bridge integration sending `input keyevent 223` (sleep) and `224` (wake).
 
 ## Security notes (read these)
@@ -56,8 +56,8 @@ The full story (mistakes and corrected assumptions included) is in **[docs/repor
 
 ```
 docs/       Full report (English; Norwegian as Markdown + Word), quick guide (lock removal only), partition map, checksums
-tools/      LP metadata parser/builder, resource-image inspector, logo builder, patch helpers, Companion-app local-push helper, USB audio policy generator
-device/     init rc, helper scripts and local tuning for the Android 13 image; data-local/ = boot hooks (microphone policy, persistent adb, assistant setting, microphone watchdog) and the USB audio policy file; launcher/ = taskbar volume button, fully_show_navbar.sh; ha/ = Home Assistant dashboard modules (doorbell notice, lighter screensaver / drawing page, clock and screen-off fix) and the screen on/off scripts; dexopt_speed.sh = AOT-compile the touch-path apps
+tools/      LP metadata parser/builder, resource-image inspector, logo builder, patch helpers, Companion-app local-push helper, USB audio policy generator, WebView profiling helpers (`webview-profile/`: CPU profile and trace over the DevTools protocol, SurfaceFlinger frame intervals)
+device/     init rc, helper scripts and local tuning for the Android 13 image; data-local/ = boot hooks (microphone policy, persistent adb, assistant setting, microphone watchdog) and the USB audio policy file; launcher/ = taskbar volume button, fully_show_navbar.sh; ha/ = Home Assistant dashboard modules (doorbell notice, lighter screensaver / drawing page / 3D house, clock and screen-off fix) and the screen on/off scripts; dexopt_speed.sh = AOT-compile the touch-path apps
 flash/      Scripts used on the device to write/verify extents, metadata, boot-logo and single-block patches
 build/      WSL scripts that rebuilt the GSI system image (ext4 features, SELinux, build.prop)
 logo/       The "Magic Mirror" boot logo (own artwork) and the renderer
