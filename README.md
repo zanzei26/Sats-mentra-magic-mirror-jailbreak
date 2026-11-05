@@ -26,7 +26,7 @@ The full story (mistakes and corrected assumptions included) is in **[docs/repor
 | Home Assistant dashboard | Kiosk dashboard in Fully; screensaver, drawing page and 3D house were made much lighter; clock freeze fixed (HA dashboard modules in `device/ha/`) |
 | Doorbell | The ring wakes the screen and shows a notice (a picture is not possible from a WebRTC-only doorbell) |
 | Screen off from HA | The "switch mirror off" button switches the display off within a second (HA sends the Android sleep key over adb) |
-| adb over Wi-Fi | Port 5555, set as a persistent property and re-asserted at every boot |
+| adb over Wi-Fi | Port 5555, set as a persistent property and re-asserted at every boot (confirmed with a reboot) |
 | Hardware video decode | Intentionally disabled for media codecs (see below) |
 | Google Play services / YouTube app | Not available on a plain AOSP GSI (so no Cast discovery in Spotify/Google Home; speakers are controlled from Home Assistant instead) |
 | Boot logo | Replaced (own "Magic Mirror" bitmap) |

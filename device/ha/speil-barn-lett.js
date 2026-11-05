@@ -7,7 +7,7 @@
  *   hvert eneste bilde, hele tiden mens Barn-siden er åpen.
  * Løsning: (1) bare det NYE linjestykket tegnes per pointermove (samme linjer, samme farger – originalens lagring og angre/tøm/
  *   gjenoppretting er uendret), (2) bakgrunnen står stille (pastell-regnbue over hele flaten), og panelene mister blur (litt mer
- *   dekkende hvit). De svevende emojiene beholdes (de animeres på GPU-en med transform).
+ *   dekkende hvit). De svevende emojiene beholdes mens barnet bruker siden, men settes på pause etter 20 s uten berøring (se rolig()).
  * Gjelder bare Android-nettlesere på /jarvis-speil. Veggpanelet (Linux/NUC) er urørt. Feil → originalen kjører som før.
  * Tilbake til original: slett denne ressursen og last siden på nytt. */
 (() => {
@@ -19,6 +19,24 @@
     st.textContent = '.rot{animation:none!important;background-size:100% 100%!important;background-position:0 0!important}' +
       '.boble{-webkit-backdrop-filter:none!important;backdrop-filter:none!important;background:#ffffffe8!important}';
     self.shadowRoot.appendChild(st); console.info('speil-barn-lett: stil aktiv');
+  }
+
+  // Problem 3 (hvile): de 12 svevende emojiene og den pulserende stjernen animeres hele tiden og holder GPU/kompositoren våken
+  //   (60 bilder i sekundet på en ellers stille side). Etter 20 s uten berøring settes animasjonene på pause (emojiene blir stående
+  //   der de er); berøring starter dem igjen. Skjermspareren kommer uansett etter to minutter.
+  function rolig(self) {
+    const st = document.createElement('style');
+    st.textContent = '.rot.stille .fly,.rot.stille .stjerne{animation-play-state:paused!important}';
+    self.shadowRoot.appendChild(st);
+    let tid = null;
+    const sett = () => {
+      const rot = self.shadowRoot.querySelector('.rot'); if (!rot) return;
+      rot.classList.remove('stille'); clearTimeout(tid);
+      tid = setTimeout(() => { const r = self.shadowRoot.querySelector('.rot'); if (r) r.classList.add('stille'); }, 20000);
+    };
+    self.addEventListener('pointerdown', sett, { capture: true, passive: true });
+    self.addEventListener('pointermove', sett, { capture: true, passive: true });
+    sett(); console.info('speil-barn-lett: ro aktiv');
   }
 
   function lettTegning(self) {
@@ -59,7 +77,7 @@
     if (!B || B.prototype.__lett) return;
     B.prototype.__lett = true;
     const oBygg = B.prototype._bygg, oTegn = B.prototype._tegneoppsett;
-    B.prototype._bygg = function () { const r = oBygg.apply(this, arguments); if (gyldig()) { try { lettStil(this); } catch (e) { console.warn('speil-barn-lett: stil', e); } } return r; };
+    B.prototype._bygg = function () { const r = oBygg.apply(this, arguments); if (gyldig()) { try { lettStil(this); rolig(this); } catch (e) { console.warn('speil-barn-lett: stil', e); } } return r; };
     B.prototype._tegneoppsett = function () { const r = oTegn.apply(this, arguments); if (gyldig()) { try { lettTegning(this); } catch (e) { console.warn('speil-barn-lett: tegning', e); } } return r; };
   };
   if (customElements.get('jarvis-barn-card')) patch(); else customElements.whenDefined('jarvis-barn-card').then(patch);
