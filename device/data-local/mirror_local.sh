@@ -65,3 +65,17 @@ if [ -f /data/local/net_watchdog.sh ]; then
     setsid sh /data/local/net_watchdog.sh > /dev/null 2>&1
   ) > /dev/null 2>&1 &
 fi
+
+# External camera HAL: JPEG stills of 2592x1944 (the webcam's maximum) crash the provider on the stock vendor library (an AOSP bug reads past the
+# end of the YU12 buffer, see docs/home-assistant-wall-panel.md, section 5). A copy of camera.device@3.4-external-impl.so with a larger frame buffer
+# (made by tools/patch_external_camera_hal.py) is bind-mounted over the vendor file, once per boot, and only when both files are exactly the ones
+# the patch was made for. The provider is restarted only if it is already running (otherwise it loads the patched file when it starts).
+CAMLIB=/vendor/lib/camera.device@3.4-external-impl.so
+CAMNEW=/data/local/ext-impl-patched.so
+if [ -f "$CAMNEW" ] && ! grep -q " $CAMLIB " /proc/mounts \
+   && [ "$(sha256sum $CAMLIB | cut -d' ' -f1)" = "7f9709755376a60b64af35d41c96a361692919f5a0b47b4ce52f70b0d9c58efa" ] \
+   && [ "$(sha256sum $CAMNEW | cut -d' ' -f1)" = "5faf6b7d4080e8787c3fcc7b47a07bcf1926da1753968ba6a146d70c1d63fc42" ]; then
+  chmod 644 "$CAMNEW"
+  mount -o bind "$CAMNEW" "$CAMLIB"
+  [ -n "$(pidof android.hardware.camera.provider@2.4-external-service)" ] && setprop ctl.restart vendor.camera-provider-2-4-ext
+fi

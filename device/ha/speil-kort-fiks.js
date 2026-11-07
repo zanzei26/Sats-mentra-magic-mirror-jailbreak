@@ -13,6 +13,9 @@
  *    10 s, skjermen går av ca. 10 s etter siste berøring, og timeouten settes tilbake til 5 min. Den svarte siden vises umiddelbart.
  *    Berøring på den svarte siden de første 14 s forlenger bare nedtellingen (scriptet kjører mode: restart); berøring etter det,
  *    eller at skjermen kommer på igjen, viser speilet og setter timeouten tilbake (script.speil_skjerm_avbryt).
+ * 3) «Kamera»-knappen: en snarvei med til: 'kamera' åpner kamera-appen via HA-scriptet script.speil_kamera (ADB: stopper og starter
+ *    appen på nytt i kamerabildet; tidtakeren husker appen, 10 s første gang) i stedet for å navigere til en visning. Tilbake til dashbordet: Tilbake-knappen i oppgavelinja.
+ *    Fire knapper + tipsteksten passer ikke på én linje på 1080 px, så knappene får 24 px skrift og mindre fyll (stil lagt til i kortets shadow-DOM).
  * Tilbake til original: slett denne ressursen og last siden på nytt. */
 (() => {
   const patch = () => {
@@ -29,6 +32,13 @@
       configurable: true, enumerable: d.enumerable, get: d.get,
       set(h) {
         try {
+          // fire snarveier + tipsteksten passer ikke på en linje på 1080 px: litt mindre knapper (bare når Kamera-snarveien finnes)
+          if (!this.__fiksCss && this.shadowRoot && this.c && (this.c.snarveier || []).some(x => x.til === 'kamera')) {
+            this.__fiksCss = true;
+            const st = document.createElement('style');
+            st.textContent = '.fot{gap:12px}.fot .snar{padding:10px 16px;font-size:24px}';
+            this.shadowRoot.appendChild(st);
+          }
           if (this.r && this.c && !this.c.vakt && this.isConnected && this.__sistTikk && Date.now() - this.__sistTikk > 3000) {
             clearInterval(this._klokkeTimer); clearInterval(this._kalTimer); clearInterval(this._vaerTimer);
             this._klokkeTimer = setInterval(() => this._tikk(), 1000);
@@ -78,6 +88,18 @@
           if (!harFully) { lytt(this); this.__avTil = Date.now() + VINDU; this.__avBedt = true; kall(this, 'speil_skjerm_av'); }
         } catch (e) { console.warn('speil-kort-fiks: skjerm av', e); }
         return slaAv.apply(this, arguments);
+      };
+    }
+    // «Kamera»: snarveien med til: 'kamera' kaller HA-scriptet i stedet for å navigere
+    const gaa = C.prototype._gaa;
+    if (typeof gaa === 'function') {
+      C.prototype._gaa = function (til) {
+        if (til === 'kamera') {
+          try { if (this._h) this._h.callService('script', 'speil_kamera').catch(e => console.warn('speil-kort-fiks: kamera', e)); }
+          catch (e) { console.warn('speil-kort-fiks: kamera', e); }
+          return;
+        }
+        return gaa.apply(this, arguments);
       };
     }
   };

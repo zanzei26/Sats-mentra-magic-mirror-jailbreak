@@ -3,7 +3,7 @@
 #   media_player.mirror_adb          the Android Debug Bridge (androidtv) integration entity for the mirror (host = mirror, port 5555;
 #                                    screenshot interval 0, app list off)
 #   notify.mobile_app_mirror         the Companion app's notify action (Settings > Companion app > device name)
-# The dashboard card (device/ha/speil-kort-fiks.js) calls script.speil_skjerm_av, script.speil_skjerm_avbryt.
+# The dashboard card (device/ha/speil-kort-fiks.js) calls script.speil_skjerm_av, script.speil_skjerm_avbryt and script.speil_kamera.
 
 speil_skjerm_av:
   alias: "Mirror: screen off"
@@ -55,3 +55,24 @@ speil_skjerm_avbryt:
     - action: notify.mobile_app_mirror
       continue_on_error: true
       data: { message: command_screen_off_timeout, data: { command: 300000 } }
+
+# "Camera" button on the dashboard (docs/home-assistant-wall-panel.md, section 5). The card module (speil-kort-fiks.js) calls it when a shortcut
+# has `til: kamera`. /data/local/camera_open.sh (device/data-local/) restarts the camera app in the live preview and keeps its countdown timer
+# choice (10 s the first time). The fallback has the Companion app start the camera app without touching its preferences.
+speil_kamera:
+  alias: "Mirror: open the camera"
+  mode: restart
+  icon: mdi:camera
+  sequence:
+    - choose:
+        - conditions:
+            - condition: template
+              value_template: "{{ states('media_player.mirror_adb') not in ['unavailable', 'unknown'] }}"
+          sequence:
+            - action: androidtv.adb_command
+              target: { entity_id: media_player.mirror_adb }
+              data: { command: "sh /data/local/camera_open.sh" }
+      default:
+        - action: notify.mobile_app_mirror
+          continue_on_error: true
+          data: { message: command_launch_app, title: com.android.camera2, data: { package_name: com.android.camera2 } }

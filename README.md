@@ -21,7 +21,7 @@ The full story (mistakes and corrected assumptions included) is in **[docs/repor
 | Newer Android running standalone | Android 13 (`TQ3A.230805.001.A3` GSI) permanently installed in `super`, boots in ~66 s, no DSU |
 | App store | Aurora Store (anonymous login) |
 | Mirror behaviour (screen off, tap to use) | 60 s screen timeout + a small touch-to-wake service |
-| Camera | Works (USB webcam via the external camera HAL; the camera app no longer freezes after fixing the still size) |
+| Camera | Works (USB webcam via the external camera HAL; the camera app no longer freezes after fixing the still size). The app's built-in self-timer is used, and a "Camera" button on the dashboard opens the app (over adb) |
 | Microphone / Assist | Works: the webcam microphone recorded silence until the USB audio policy got an explicit 16-bit 48 kHz profile (bind-mounted at boot). Some Assist problems remain (intermittent audio loss, no custom wake word) |
 | Home Assistant dashboard | Kiosk dashboard in Fully; screensaver and drawing page were made much lighter, the 3D house runs with every feature on, clock freeze fixed (HA dashboard modules in `device/ha/`) |
 | Doorbell | The ring wakes the screen and shows a notice (a picture is not possible from a WebRTC-only doorbell) |
@@ -56,8 +56,8 @@ The full story (mistakes and corrected assumptions included) is in **[docs/repor
 
 ```
 docs/       Full report (English; Norwegian as Markdown + Word), quick guide (lock removal only), partition map, checksums
-tools/      LP metadata parser/builder, resource-image inspector, logo builder, patch helpers, Companion-app local-push helper, USB audio policy generator, WebView profiling helpers (`webview-profile/`: CPU profile and trace over the DevTools protocol, SurfaceFlinger frame intervals)
-device/     init rc, helper scripts and local tuning for the Android 13 image; data-local/ = boot hooks (microphone policy, persistent adb, assistant setting, microphone watchdog) and the USB audio policy file; launcher/ = taskbar volume button, fully_show_navbar.sh; ha/ = Home Assistant dashboard modules (doorbell notice, lighter screensaver / drawing page / 3D house, clock and screen-off fix) and the screen on/off scripts; dexopt_speed.sh = AOT-compile the touch-path apps
+tools/      LP metadata parser/builder, resource-image inspector, logo builder, patch helpers (incl. a one-instruction fix of the external camera HAL so 2592x1944 photos no longer crash it), Companion-app local-push helper, USB audio policy generator, WebView profiling helpers (`webview-profile/`: CPU profile and trace over the DevTools protocol, SurfaceFlinger frame intervals)
+device/     init rc, helper scripts and local tuning for the Android 13 image; data-local/ = boot hooks (microphone policy, patched camera HAL library, persistent adb, assistant setting, microphone watchdog, Wi-Fi watchdog), the USB audio policy file and `camera_open.sh` (run on demand by the dashboard's camera button); launcher/ = taskbar volume button, fully_show_navbar.sh; ha/ = Home Assistant dashboard modules (doorbell notice, lighter screensaver / drawing page / 3D house, clock and screen-off fix) and the screen on/off scripts; dexopt_speed.sh = AOT-compile the touch-path apps
 flash/      Scripts used on the device to write/verify extents, metadata, boot-logo and single-block patches
 build/      WSL scripts that rebuilt the GSI system image (ext4 features, SELinux, build.prop)
 logo/       The "Magic Mirror" boot logo (own artwork) and the renderer

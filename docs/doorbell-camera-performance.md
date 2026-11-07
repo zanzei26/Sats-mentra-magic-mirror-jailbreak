@@ -12,12 +12,12 @@ Fix: pick a still size whose height is a multiple of 16. In the camera app's pre
 
 | Size | Frame rate (this webcam) | Note |
 |---|---|---|
-| 2592x1944 | crashes | height not a multiple of 16 |
+| 2592x1944 | crashes on the stock vendor library | height not a multiple of 16; a one-instruction patch of the HAL fixes it ([wall-panel doc, section 5](home-assistant-wall-panel.md)) |
 | 2048x1536 | ~21.6 fps | 3 MP, chosen |
 | 1600x1200 | ~27.8 fps | 2 MP, smoother |
 | 1024x768 | 30 fps | |
 
-The on-screen preview size does not change with this setting; only the saved photo gets smaller.
+The on-screen preview size does not change with this setting; only the saved photo gets smaller. Saved photos are JPEG quality 90 (4:2:0) in `/sdcard/Pictures`. The app's built-in self-timer, its settings screen and a camera button for the dashboard are in [home-assistant-wall-panel.md](home-assistant-wall-panel.md), section 5.
 
 ## 2. Is Android itself laggy?
 
