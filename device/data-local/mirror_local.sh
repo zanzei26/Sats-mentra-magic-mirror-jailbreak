@@ -53,3 +53,15 @@ if [ -f /data/local/mic_watchdog.sh ]; then
     setsid sh /data/local/mic_watchdog.sh > /dev/null 2>&1
   ) > /dev/null 2>&1 &
 fi
+
+# Keep the mirror reachable over Wi-Fi and adb, also while the screen is off (see docs/home-assistant-wall-panel.md, section 1).
+# Starts one watchdog per boot, 60 s after boot has completed. It never wakes the screen and never switches Wi-Fi off. The
+# script exits at once if an instance is already running.
+if [ -f /data/local/net_watchdog.sh ]; then
+  (
+    n=0
+    while [ "$(getprop sys.boot_completed)" != "1" ] && [ $n -lt 120 ]; do sleep 2; n=$((n+1)); done
+    sleep 60
+    setsid sh /data/local/net_watchdog.sh > /dev/null 2>&1
+  ) > /dev/null 2>&1 &
+fi

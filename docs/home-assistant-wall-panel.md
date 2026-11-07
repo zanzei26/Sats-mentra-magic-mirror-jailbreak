@@ -25,6 +25,13 @@ The USB cable is not always connected. Wireless debugging (random port) is not e
 
 Security: `ro.adb.secure=0` means anyone on the network has root. Home Assistant can also hold a connection (section 4). Do not do this on a network you do not control.
 
+**Reachable while the screen is off** (`device/data-local/net_watchdog.sh`, found 2026-11-07). Two things made the mirror hard to reach from a PC with the screen off:
+
+1. At screen-off Android puts the Wi-Fi chip into power saving: the driver's "suspend" mode (packet filter, DTIM skipping) plus the radio's own power save. A machine without a fresh neighbour entry then waits 100-450 ms or gets no answer, while Home Assistant's already open adb link keeps working. With the screen off and one ping every 300 ms: 116-299 ms with both on, 7-21 ms after `wpa_cli -p /data/vendor/wifi/wpa/sockets -i wlan0 driver SETSUSPENDMODE 0` and `iwconfig wlan0 power off` (both in `/vendor/bin`). Android switches them back on at every screen-off, so a loop re-applies them (about 9 s later). `cmd wifi force-hi-perf-mode` does not stop the suspend mode here.
+2. Once Wi-Fi is down Android does not join again while the screen is off. The access point dropped the mirror at 01:20 and it was back at 01:55; a test with Wi-Fi switched off and on and the screen off stayed offline for 15 minutes and rejoined 0.05 s after a touch. Waking the screen repairs it in about 30 s, but a mirror that is meant to be dark must not light up, so the script does not do that.
+
+Android also logs "Network disconnected. Disabling adbwifi" at every Wi-Fi disconnect and turns Wireless debugging off (it comes back on a trusted network by itself); the plain port 5555 is not affected. So no test or repair should disconnect Wi-Fi, and the script never does. It keeps the Wi-Fi chip awake, pings the router and runs `svc wifi enable` when it does not answer for a minute, restores adbd's port, `adb_enabled` and Wireless debugging, and logs to `/data/local/net_watchdog.log`. It is started at boot like the microphone watchdog: `mirror_local.sh` has a block that waits for `sys.boot_completed`, sleeps 60 s and runs `setsid sh /data/local/net_watchdog.sh` (installed on the mirror 2026-11-07; the script exits at once if an instance is already running). Copy `net_watchdog.sh` to `/data/local/` next to `mirror_local.sh`. Untested: the boot start itself (no reboot was done after installing it, since that disconnects Wi-Fi) and letting the supplicant rejoin by itself (`wpa_cli reconnect`, in the script as a best effort), because testing either means disconnecting Wi-Fi.
+
 ## 2. Camera and microphone for the Companion app / Assist
 
 ### Camera
@@ -122,6 +129,7 @@ So on 3.0.2 the module still buys about 4 points of intervals over 34 ms and abo
 - **WebView/Chrome command-line flags:** `/data/local/tmp/webview-command-line` is not honored; Chromium reads it only on eng/userdebug builds and this GSI reports `ro.build.type=user`.
 - Raising CPU/GPU minimum frequencies or changing the governor: nothing measurable (reverted).
 - A **Settings app loop** (35 % CPU after the user has opened Settings; `am force-stop com.android.settings` stops it) is worth knowing about.
+- **Where the threads run** (2026-11-07, orbit test). Android does use all six cores (52-90 % busy per core while orbiting), but all of the roughly 2,500 device interrupts per second land on cpu0, and in the one profiled run the WebView's main JavaScript thread (`CrRendererMain`, 63 % of one core) ran mostly on the A53 cores cpu1-3 while the GPU thread, `RenderThread` and the compositor sat on the big cores. Pinning the main and compositor threads to the big cores (`taskset`, mask 0x30) and moving the GPU, USB and eMMC/SDIO interrupts off cpu0 (`/proc/irq/N/smp_affinity_list`), alone or together, changed nothing measurable: 27-32 % of intervals over 34 ms in every variant including the unchanged baseline (2 runs each, spread about 3 points). The limit is one thread's JavaScript work per frame, which a page cannot split over cores, not where it runs. These runs were worse than the table above (about 28 % against 19 %) and most were under the 650-frame validity line; the cause was not found, so the two sets are not comparable.
 
 ### Linux instead of Android? (checked, not done)
 
