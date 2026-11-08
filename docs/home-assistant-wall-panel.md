@@ -124,6 +124,17 @@ So the full house now orbits almost like the reduced one did (6-8 % fewer frames
 
 So on 3.0.2 the module still buys about 4 points of intervals over 34 ms and about 8 % more presented frames. Most of it is the single-pass accessor, which now only matters for the 7-9 leftover materials; the throttle alone is about 1.4 points, which is inside the run-to-run spread (about 2 points). Home Assistant's load was not held fixed, only interleaved. Five runs with 180-575 presented frames were discarded; the cause was not found (they stopped once the script logged the page path and the screen state before and after each run, both normal). The module stays as it is.
 
+**NeonPlan 3.0.3, the whole-site plan and hidden room names (2026-11-08).** The owner took the second finding of the report: 3.0.3 (Marketplace "Refresh information", install, Home Assistant restart; loader `?v=3.0.3-84903058f8`) draws the floor shadows, the light on floors and walls and two fun-pack surfaces in one pass as well. With the module switched off by a flag set before the page scripts run (the DevTools session must stay open while the page navigates, or the script is dropped and the module runs anyway), **all 85 see-through, double-sided materials are single-pass by themselves** (`forceSinglePass` is set on every one of the 189 materials; on 3.0.2, 7-9 were left over). So the single-pass block of `speil-3d-lett.js` has nothing left to do on 3.0.3; the `hass` throttle stays until the owner's state-sync split arrives. At the same time the card was changed to show the whole property (`plan: site`: eight floors and areas instead of three, floor thumbnails, a sun path in daylight), so the scene is bigger: 111-126 draw calls and 52.7-54.7k triangles per frame (3.0.1: 68-75 and about 43k), 178-189 materials. The room names are hidden with `room_names: false` on the card; the card's own toggle is not offered while that key is set, and removing the key brings the names back.
+
+| Orbit test (about 21 s of drags) | Valid runs | Frames | Intervals over 34 ms | Over 50 ms |
+|---|---|---|---|---|
+| 3.0.2 + module, 8-floor scene, night, names hidden | 6 | 651-828 | 15.6-18.0 % (mean 16.2) | 3.1-4.6 % |
+| 3.0.3 + module, daytime, names hidden | 5 of 6 | 733-773 | 18.8-21.8 % (mean 20.3) | 5.6-7.5 % |
+| 3.0.3 interleaved, module as installed | 2 of 3 | 717, 742 | 20.7, 19.7 % | 5.7, 5.5 % |
+| 3.0.3 interleaved, module off | 3 | 669-761 | 16.3, 23.2, 23.2 % | 5.5, 9.1, 8.5 % |
+
+Idle CPU on the 3D view was 10.6 % (night) and 10.1 % (day). The first two rows are **not comparable**: the night run had the lights-on night scene and a quiet Home Assistant, the day run a sun path, nine textures instead of one, more draw calls and a busier house. The interleaved rows are the only controlled comparison (same hour, same page, debugging socket open in both): on 3.0.3 the module and stock are inside the run-to-run spread of 3-7 points, at most with a slightly shorter tail over 50 ms with the module. Not measured: 3.0.2 against 3.0.3 under the same conditions (it would need a rollback and two more Home Assistant restarts) and the effect of hiding the room names alone.
+
 ### Things that did not help
 
 - **Chrome Beta 158 instead of Fully/WebView 109** (same dashboards, frames from SurfaceFlinger): the orb is identical (p50 33 ms, about 19 % over 34 ms), the 3D house is **worse** in Chrome (26.3 % over 34 ms against 9.7 %, CPU 79 % against 55 %). Chrome also adds a toolbar and has no kiosk mode without Play services.
